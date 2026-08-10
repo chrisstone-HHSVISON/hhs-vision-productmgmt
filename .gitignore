@@ -1,0 +1,8 @@
+.DS_Store
+*.log
+
+# Local tooling / scratch
+.claude/scratch/
+.claude/settings.local.json
+.env
+.env.local
