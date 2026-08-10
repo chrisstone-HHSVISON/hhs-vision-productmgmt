@@ -16,10 +16,7 @@ ROADMAP_CSV = REPO_ROOT / "Source" / "roadmap-data.csv"
 
 DEFAULT_SHEET_ID = "1s4S1TS3Vkl_Xh9uZ9CSZt9VTWVhDzU5-wNpCu7q5w4g"
 DEFAULT_GID = "0"
-DEFAULT_CSV_URL = (
-    "https://docs.google.com/spreadsheets/d/"
-    f"{DEFAULT_SHEET_ID}/export?format=csv&gid={DEFAULT_GID}"
-)
+DEFAULT_CSV_URL = ""
 
 RELEASE_ONE = "1. Dec 14 Happy Path"
 RELEASE_TWO = "2. 2027 Go-Live MVP"
@@ -132,15 +129,20 @@ def update_roadmap_html(r1, r2, snapshot_iso: str):
 def main():
     sheet_id = os.getenv("GOOGLE_SHEET_ID", DEFAULT_SHEET_ID)
     worksheet_gid = os.getenv("GOOGLE_WORKSHEET_GID", DEFAULT_GID)
-    csv_url = os.getenv("ROADMAP_CSV_URL", DEFAULT_CSV_URL)
+    csv_url = os.getenv("ROADMAP_CSV_URL", DEFAULT_CSV_URL).strip()
     svc_json = os.getenv("GOOGLE_SERVICE_ACCOUNT_JSON", "").strip()
 
     if svc_json:
         csv_text = fetch_csv_via_service_account(sheet_id, worksheet_gid, svc_json)
         print("Fetched roadmap data using Google service account")
-    else:
+    elif csv_url:
         csv_text = fetch_csv_via_url(csv_url)
         print(f"Fetched roadmap data from URL: {csv_url}")
+    else:
+        fail(
+            "No sync source configured. Provide GOOGLE_SERVICE_ACCOUNT_JSON (preferred) "
+            "or ROADMAP_CSV_URL."
+        )
 
     ROADMAP_CSV.write_text(csv_text, encoding="utf-8")
 

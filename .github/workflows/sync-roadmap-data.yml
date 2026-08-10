@@ -26,12 +26,19 @@ jobs:
           pip install gspread google-auth
 
       - name: Sync roadmap snapshot
+        if: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON != '' || vars.ROADMAP_CSV_URL != '' }}
         env:
           GOOGLE_SHEET_ID: ${{ vars.GOOGLE_SHEET_ID || '1s4S1TS3Vkl_Xh9uZ9CSZt9VTWVhDzU5-wNpCu7q5w4g' }}
           GOOGLE_WORKSHEET_GID: ${{ vars.GOOGLE_WORKSHEET_GID || '0' }}
-          ROADMAP_CSV_URL: ${{ vars.ROADMAP_CSV_URL || 'https://docs.google.com/spreadsheets/d/1s4S1TS3Vkl_Xh9uZ9CSZt9VTWVhDzU5-wNpCu7q5w4g/export?format=csv&gid=0' }}
+          ROADMAP_CSV_URL: ${{ vars.ROADMAP_CSV_URL }}
           GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
         run: python scripts/sync_roadmap_data.py
+
+      - name: Skip sync (not configured)
+        if: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON == '' && vars.ROADMAP_CSV_URL == '' }}
+        run: |
+          echo "No sync source configured. Set GOOGLE_SERVICE_ACCOUNT_JSON secret (preferred)"
+          echo "or set ROADMAP_CSV_URL repository variable to enable automated updates."
 
       - name: Commit and push changes
         run: |
