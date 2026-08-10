@@ -63,34 +63,16 @@ Optional repository variables:
 - `GOOGLE_WORKSHEET_GID` (default `0`)
 - `ROADMAP_CSV_URL`
 
-### Optional: Viewer Google Sign-In for live access
+### Source Sheet Access (Google Drive Sign-In)
 
-`roadmap.html` now supports an optional client-side mode where each viewer signs in with their Google account. If they already have permission on the source sheet, they can pull live updates directly.
+Viewer access to the private source sheet uses normal Google authorization, not custom OAuth setup in the roadmap app.
 
-How it works:
+1. Click **Open Source Sheet** in the Live Sync controls.
+2. If prompted, sign in through the standard Google/Drive sign-in flow.
+3. If access is denied, request sheet access from the sheet owner.
 
-1. Default mode remains repository snapshot mode (GitHub Actions sync + Pages).
-2. User clicks **Sign in with Google** in the Live Sync cluster.
-3. The page requests a read-only Google Sheets token and fetches rows via Sheets API.
-4. User can switch back with **Use Snapshot Mode**.
+The roadmap itself remains available via GitHub Pages using repository snapshot data that is refreshed by GitHub Actions.
 
-Setup required:
-
-1. In Google Cloud Console, enable **Google Sheets API**.
-2. Create an **OAuth 2.0 Client ID** of type **Web application**.
-3. Add authorized JavaScript origin(s):
-   - `https://chrisstone-hhsvison.github.io`
-4. Provide the client ID either way:
-   - Preferred: set `GOOGLE_OAUTH_CLIENT_ID` in `roadmap.html` and redeploy.
-   - Fast path: click **Set Google Sign-In** in the page and paste the client ID once (stored in browser local storage for that user/browser).
-   - Shared-link path: append `?googleClientId=<YOUR_CLIENT_ID>` to the roadmap URL to auto-fill setup for the browser.
-5. Ensure users are granted access to the source sheet in Google Sheets.
-
-Notes:
-
-- This mode is per-user and requires sign-in in each browser session.
-- If OAuth is not configured, the sign-in button is disabled and snapshot mode continues to work.
-- Users can click **Clear Google Setup** to remove stored client ID/token state and return to snapshot mode.
 | Milestone | Start Date                    | End Date                    | Duration          |
 | --------- | ----------------------------- | --------------------------- | ----------------- |
 | **1**     | Wednesday, June 10, 2026      | Tuesday, July 7, 2026       | 4 weeks / 28 days |

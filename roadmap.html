@@ -152,8 +152,7 @@
     .sync-meta.access.ok { color: #1B5E20; }
     .sync-meta.access.warn { color: #8A6D1D; }
     #refreshNowBtn { padding: 5px 12px; }
-    #googleAuthBtn { padding: 5px 12px; }
-    #clearGoogleAuthBtn { padding: 5px 12px; }
+    #openSheetBtn { padding: 5px 12px; }
 
     @keyframes syncPulse {
       0%   { transform: scale(1); opacity: 0.8; }
@@ -449,8 +448,7 @@
   <div class="sync-cluster" id="syncCluster">
     <span class="sync-title"><span class="sync-dot" id="syncDot"></span>Live Sync</span>
     <button class="expand-all-btn" id="refreshNowBtn">Refresh Now</button>
-    <button class="expand-all-btn" id="googleAuthBtn">Sign in with Google</button>
-    <button class="expand-all-btn" id="clearGoogleAuthBtn">Clear Google Setup</button>
+    <button class="expand-all-btn" id="openSheetBtn">Open Source Sheet</button>
     <span class="controls-label sync-meta access" id="accessCheck">Access Check: Checking...</span>
     <span class="controls-label sync-meta" id="dataStatus">Source: embedded snapshot</span>
     <span class="controls-label sync-meta" id="lastSynced">Last synced: not yet</span>
@@ -472,7 +470,6 @@
   <div class="legend-item"><div class="swatch cur"></div>Current milestone (M3)</div>
 </div>
 
-<script src="https://accounts.google.com/gsi/client" async defer></script>
 <script>
 const MS = [
   { id:'M1',  label:'M1',  dates:'Jun 10 – Jul 7',   current:false },
@@ -492,22 +489,14 @@ let R1 = STATIC_R1;
 let R2 = STATIC_R2;
 
 const SHEET_SOURCE = {
-  sheetId: '1s4S1TS3Vkl_Xh9uZ9CSZt9VTWVhDzU5-wNpCu7q5w4g',
-  oauthRange: 'A:Z',
+  sheetUrl: 'https://docs.google.com/spreadsheets/d/1s4S1TS3Vkl_Xh9uZ9CSZt9VTWVhDzU5-wNpCu7q5w4g/edit?gid=0#gid=0',
   csvUrl: 'https://docs.google.com/spreadsheets/d/1s4S1TS3Vkl_Xh9uZ9CSZt9VTWVhDzU5-wNpCu7q5w4g/export?format=csv&gid=0',
   releaseOne: '1. Dec 14 Happy Path',
   releaseTwo: '2. 2027 Go-Live MVP',
 };
-const GOOGLE_OAUTH_CLIENT_ID = '';
-const GOOGLE_SHEETS_READ_SCOPE = 'https://www.googleapis.com/auth/spreadsheets.readonly';
-const GOOGLE_OAUTH_CLIENT_ID_STORAGE_KEY = 'hhs-roadmap-google-oauth-client-id';
 const AUTO_REFRESH_MS = 120000;
 const REPO_AUTO_SYNC_MODE = true;
 const SNAPSHOT_UPDATED_AT = '2026-08-10T21:43:56Z';
-
-let googleAccessToken = '';
-let googleTokenClient = null;
-let googleLiveMode = false;
 
 function csvTextToObjects(text) {
   const rows = [];
@@ -598,36 +587,6 @@ function sheetRowsToReleaseData(rows) {
   return { r1: toArray(grouped.r1), r2: toArray(grouped.r2) };
 }
 
-function matrixRowsToObjects(values) {
-  if (!Array.isArray(values) || !values.length) return [];
-  const headers = (values[0] || []).map(h => String(h || '').trim());
-  if (!headers.length) return [];
-
-  return values.slice(1).map(cells => {
-    const obj = {};
-    headers.forEach((h, idx) => {
-      obj[h] = String((cells && cells[idx]) || '').trim();
-    });
-    return obj;
-  }).filter(obj => Object.values(obj).some(Boolean));
-}
-
-async function loadLiveRoadmapDataFromGoogleToken(accessToken) {
-  const range = encodeURIComponent(SHEET_SOURCE.oauthRange);
-  const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_SOURCE.sheetId}/values/${range}?majorDimension=ROWS`;
-  const response = await fetch(url, {
-    headers: { Authorization: `Bearer ${accessToken}` },
-    cache: 'no-store',
-  });
-  if (!response.ok) throw new Error(`Google Sheets API request failed: ${response.status}`);
-
-  const payload = await response.json();
-  const rows = matrixRowsToObjects(payload.values || []);
-  const data = sheetRowsToReleaseData(rows);
-  if (!data.r1.length && !data.r2.length) throw new Error('No usable roadmap rows returned from Google Sheets API');
-  return data;
-}
-
 async function loadLiveRoadmapData() {
   const response = await fetch(SHEET_SOURCE.csvUrl, { cache: 'no-store' });
   if (!response.ok) throw new Error(`Sheet request failed: ${response.status}`);
@@ -658,7 +617,7 @@ function setAccessCheck(connected) {
     el.textContent = 'Access Check: Live data connected';
     el.classList.add('ok');
   } else {
-    el.textContent = 'Access Check: Using fallback snapshot';
+    el.textContent = 'Access Check: Using fallback snapshot (sign in via Google Drive for sheet access)';
     el.classList.add('warn');
   }
 }
@@ -673,180 +632,6 @@ function setLastSynced(isoTimestamp) {
   }
   const formatted = new Date(isoTimestamp).toLocaleString();
   el.textContent = `Last synced: ${formatted}`;
-}
-
-function isGoogleAuthConfigured() {
-  return !!getGoogleOAuthClientId();
-}
-
-function looksLikeGoogleClientId(value) {
-  return typeof value === 'string' && /^\d{6,}-[a-z0-9\-]+\.apps\.googleusercontent\.com$/i.test(value.trim());
-}
-
-function getGoogleOAuthClientId() {
-  if (GOOGLE_OAUTH_CLIENT_ID && GOOGLE_OAUTH_CLIENT_ID !== 'YOUR_GOOGLE_OAUTH_CLIENT_ID') {
-    return GOOGLE_OAUTH_CLIENT_ID;
-  }
-  try {
-    return localStorage.getItem(GOOGLE_OAUTH_CLIENT_ID_STORAGE_KEY) || '';
-  } catch (_err) {
-    return '';
-  }
-}
-
-function bootstrapGoogleClientIdFromUrl() {
-  try {
-    const params = new URLSearchParams(window.location.search);
-    const fromUrl = (params.get('googleClientId') || '').trim();
-    if (!looksLikeGoogleClientId(fromUrl)) return;
-    localStorage.setItem(GOOGLE_OAUTH_CLIENT_ID_STORAGE_KEY, fromUrl);
-  } catch (_err) {
-    // no-op
-  }
-}
-
-function maybeSetGoogleOAuthClientId() {
-  if (isGoogleAuthConfigured()) return true;
-  const clientId = window.prompt('Enter your Google OAuth Web Client ID to enable Sign in with Google:');
-  if (!clientId) return false;
-  if (!looksLikeGoogleClientId(clientId)) {
-    window.alert('That does not look like a valid Google OAuth Web Client ID. It should end with .apps.googleusercontent.com');
-    return false;
-  }
-  try {
-    localStorage.setItem(GOOGLE_OAUTH_CLIENT_ID_STORAGE_KEY, clientId.trim());
-  } catch (_err) {
-    return false;
-  }
-  return !!getGoogleOAuthClientId();
-}
-
-function clearGoogleAuthSetup() {
-  googleLiveMode = false;
-  googleAccessToken = '';
-  googleTokenClient = null;
-  try {
-    localStorage.removeItem(GOOGLE_OAUTH_CLIENT_ID_STORAGE_KEY);
-  } catch (_err) {
-    // no-op
-  }
-  if (window.google && window.google.accounts && window.google.accounts.oauth2 && typeof window.google.accounts.oauth2.revoke === 'function') {
-    try {
-      window.google.accounts.oauth2.revoke('', () => {});
-    } catch (_err) {
-      // no-op
-    }
-  }
-  setGoogleAuthState(false);
-  setDataStatus('repository auto-sync (GitHub Actions)', true);
-  setAccessCheck(true);
-  setLastSynced(SNAPSHOT_UPDATED_AT);
-}
-
-function setGoogleAuthState(signedIn) {
-  const btn = document.getElementById('googleAuthBtn');
-  const clearBtn = document.getElementById('clearGoogleAuthBtn');
-  if (!btn) return;
-
-  if (!isGoogleAuthConfigured()) {
-    btn.disabled = false;
-    btn.textContent = 'Set Google Sign-In';
-    if (clearBtn) {
-      clearBtn.disabled = true;
-      clearBtn.style.opacity = 0.6;
-    }
-    return;
-  }
-
-  btn.disabled = false;
-  btn.textContent = signedIn ? 'Use Snapshot Mode' : 'Sign in with Google';
-  if (clearBtn) {
-    clearBtn.disabled = false;
-    clearBtn.style.opacity = 1;
-  }
-}
-
-function initGoogleAuthButton() {
-  bootstrapGoogleClientIdFromUrl();
-  setGoogleAuthState(false);
-  const btn = document.getElementById('googleAuthBtn');
-  const clearBtn = document.getElementById('clearGoogleAuthBtn');
-  if (!btn) return;
-
-  btn.addEventListener('click', async function() {
-    if (googleLiveMode) {
-      googleLiveMode = false;
-      googleAccessToken = '';
-      setGoogleAuthState(false);
-      setDataStatus('repository auto-sync (GitHub Actions)', true);
-      setAccessCheck(true);
-      setLastSynced(SNAPSHOT_UPDATED_AT);
-      return;
-    }
-
-    if (!isGoogleAuthConfigured() && !maybeSetGoogleOAuthClientId()) {
-      setDataStatus('repository auto-sync (Google OAuth client ID required)', false);
-      setAccessCheck(false);
-      setGoogleAuthState(false);
-      return;
-    }
-
-    if (!window.google || !window.google.accounts || !window.google.accounts.oauth2) {
-      setDataStatus('repository auto-sync (Google Identity SDK not available)', false);
-      setAccessCheck(false);
-      return;
-    }
-
-    setRefreshInProgress(true);
-    try {
-      const tokenResponse = await new Promise((resolve, reject) => {
-        if (!googleTokenClient) {
-          googleTokenClient = window.google.accounts.oauth2.initTokenClient({
-            client_id: getGoogleOAuthClientId(),
-            scope: GOOGLE_SHEETS_READ_SCOPE,
-            callback: (resp) => {
-              if (resp && resp.error) {
-                reject(new Error(resp.error));
-                return;
-              }
-              resolve(resp);
-            },
-          });
-        } else {
-          googleTokenClient.callback = (resp) => {
-            if (resp && resp.error) {
-              reject(new Error(resp.error));
-              return;
-            }
-            resolve(resp);
-          };
-        }
-
-        googleTokenClient.requestAccessToken({ prompt: 'select_account' });
-      });
-
-      googleAccessToken = tokenResponse && tokenResponse.access_token ? tokenResponse.access_token : '';
-      if (!googleAccessToken) throw new Error('No access token returned');
-
-      googleLiveMode = true;
-      setGoogleAuthState(true);
-      await refreshRoadmapData({ forceGoogleLive: true });
-    } catch (err) {
-      console.warn('Google sign-in live mode failed; falling back to snapshot.', err);
-      googleLiveMode = false;
-      googleAccessToken = '';
-      setGoogleAuthState(false);
-      setDataStatus('repository auto-sync (Google sign-in failed)', false);
-      setAccessCheck(false);
-      setRefreshInProgress(false);
-    }
-  });
-
-  if (clearBtn) {
-    clearBtn.addEventListener('click', function() {
-      clearGoogleAuthSetup();
-    });
-  }
 }
 
 function setRefreshInProgress(inProgress) {
@@ -999,18 +784,14 @@ function applyCurrentUiState() {
 }
 
 async function refreshRoadmapData(opts = {}) {
-  const forceGoogleLive = !!opts.forceGoogleLive;
-
-  if (REPO_AUTO_SYNC_MODE && !forceGoogleLive && !googleLiveMode) {
+  if (REPO_AUTO_SYNC_MODE) {
     window.location.reload();
     return;
   }
 
   setRefreshInProgress(true);
   try {
-    const liveData = forceGoogleLive || googleLiveMode
-      ? await loadLiveRoadmapDataFromGoogleToken(googleAccessToken)
-      : await loadLiveRoadmapData();
+    const liveData = await loadLiveRoadmapData();
     const nextSignature = JSON.stringify(liveData);
     const now = new Date().toISOString();
     if (nextSignature !== latestDataSignature) {
@@ -1020,22 +801,11 @@ async function refreshRoadmapData(opts = {}) {
       renderRoadmap();
     }
     setLastSynced(now);
-    if (forceGoogleLive || googleLiveMode) {
-      setDataStatus('Google signed-in live sheet', true);
-    } else {
-      setDataStatus('live sheet (auto-sync on)', true);
-    }
+    setDataStatus('live sheet (auto-sync on)', true);
     setAccessCheck(true);
   } catch (err) {
     console.warn('Roadmap live refresh failed, keeping current rendered data.', err);
-    if (forceGoogleLive || googleLiveMode) {
-      setDataStatus('Google signed-in live sheet unavailable', false);
-      googleLiveMode = false;
-      googleAccessToken = '';
-      setGoogleAuthState(false);
-    } else {
-      setDataStatus('embedded snapshot (live sync unavailable)', false);
-    }
+    setDataStatus('embedded snapshot (live sync unavailable)', false);
     setAccessCheck(false);
   } finally {
     setRefreshInProgress(false);
@@ -1079,7 +849,6 @@ async function initRoadmapData() {
 
 initRoadmapData();
 renderMilestoneNav();
-initGoogleAuthButton();
 
 // ── Toggle individual feature sub-rows ───────────────────────────────────────
 function toggleSubs(id) {
@@ -1101,6 +870,10 @@ document.getElementById('expandAllBtn').addEventListener('click', function() {
 
 document.getElementById('refreshNowBtn').addEventListener('click', function() {
   refreshRoadmapData();
+});
+
+document.getElementById('openSheetBtn').addEventListener('click', function() {
+  window.open(SHEET_SOURCE.sheetUrl, '_blank', 'noopener');
 });
 
 // ── Release filter ────────────────────────────────────────────────────────────
