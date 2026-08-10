@@ -497,6 +497,7 @@ const SHEET_SOURCE = {
 const AUTO_REFRESH_MS = 120000;
 const REPO_AUTO_SYNC_MODE = true;
 const SNAPSHOT_UPDATED_AT = '2026-08-10T21:43:56Z';
+const RELOAD_CACHE_PARAM = '_refresh';
 
 function csvTextToObjects(text) {
   const rows = [];
@@ -632,6 +633,26 @@ function setLastSynced(isoTimestamp) {
   }
   const formatted = new Date(isoTimestamp).toLocaleString();
   el.textContent = `Last synced: ${formatted}`;
+}
+
+function getRepoDisplayedSyncTimestamp() {
+  const snapshotMs = Date.parse(SNAPSHOT_UPDATED_AT || '');
+  const pageMs = Date.parse(document.lastModified || '');
+  const hasSnapshot = !Number.isNaN(snapshotMs);
+  const hasPage = !Number.isNaN(pageMs);
+
+  if (hasSnapshot && hasPage) {
+    return new Date(Math.max(snapshotMs, pageMs)).toISOString();
+  }
+  if (hasSnapshot) return new Date(snapshotMs).toISOString();
+  if (hasPage) return new Date(pageMs).toISOString();
+  return '';
+}
+
+function reloadWithCacheBust() {
+  const nextUrl = new URL(window.location.href);
+  nextUrl.searchParams.set(RELOAD_CACHE_PARAM, Date.now().toString());
+  window.location.replace(nextUrl.toString());
 }
 
 function setRefreshInProgress(inProgress) {
@@ -783,9 +804,12 @@ function applyCurrentUiState() {
   });
 }
 
-async function refreshRoadmapData(opts = {}) {
+async function refreshRoadmapData() {
   if (REPO_AUTO_SYNC_MODE) {
-    window.location.reload();
+    setRefreshInProgress(true);
+    setDataStatus('checking repository snapshot...', true);
+    setAccessCheck(true);
+    reloadWithCacheBust();
     return;
   }
 
@@ -817,7 +841,7 @@ async function initRoadmapData() {
     setRefreshInProgress(false);
     setDataStatus('repository auto-sync (GitHub Actions)', true);
     setAccessCheck(true);
-    setLastSynced(SNAPSHOT_UPDATED_AT);
+    setLastSynced(getRepoDisplayedSyncTimestamp());
     latestDataSignature = JSON.stringify({ r1: R1, r2: R2 });
     renderRoadmap();
     return;
