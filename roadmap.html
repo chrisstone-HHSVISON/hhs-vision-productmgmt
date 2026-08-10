@@ -498,6 +498,7 @@ const SHEET_SOURCE = {
 };
 const GOOGLE_OAUTH_CLIENT_ID = '';
 const GOOGLE_SHEETS_READ_SCOPE = 'https://www.googleapis.com/auth/spreadsheets.readonly';
+const GOOGLE_OAUTH_CLIENT_ID_STORAGE_KEY = 'hhs-roadmap-google-oauth-client-id';
 const AUTO_REFRESH_MS = 120000;
 const REPO_AUTO_SYNC_MODE = true;
 const SNAPSHOT_UPDATED_AT = '2026-08-10T21:43:56Z';
@@ -673,7 +674,30 @@ function setLastSynced(isoTimestamp) {
 }
 
 function isGoogleAuthConfigured() {
-  return !!GOOGLE_OAUTH_CLIENT_ID && GOOGLE_OAUTH_CLIENT_ID !== 'YOUR_GOOGLE_OAUTH_CLIENT_ID';
+  return !!getGoogleOAuthClientId();
+}
+
+function getGoogleOAuthClientId() {
+  if (GOOGLE_OAUTH_CLIENT_ID && GOOGLE_OAUTH_CLIENT_ID !== 'YOUR_GOOGLE_OAUTH_CLIENT_ID') {
+    return GOOGLE_OAUTH_CLIENT_ID;
+  }
+  try {
+    return localStorage.getItem(GOOGLE_OAUTH_CLIENT_ID_STORAGE_KEY) || '';
+  } catch (_err) {
+    return '';
+  }
+}
+
+function maybeSetGoogleOAuthClientId() {
+  if (isGoogleAuthConfigured()) return true;
+  const clientId = window.prompt('Enter your Google OAuth Web Client ID to enable Sign in with Google:');
+  if (!clientId) return false;
+  try {
+    localStorage.setItem(GOOGLE_OAUTH_CLIENT_ID_STORAGE_KEY, clientId.trim());
+  } catch (_err) {
+    return false;
+  }
+  return !!getGoogleOAuthClientId();
 }
 
 function setGoogleAuthState(signedIn) {
@@ -681,8 +705,8 @@ function setGoogleAuthState(signedIn) {
   if (!btn) return;
 
   if (!isGoogleAuthConfigured()) {
-    btn.disabled = true;
-    btn.textContent = 'Google Sign-In Not Configured';
+    btn.disabled = false;
+    btn.textContent = 'Set Google Sign-In';
     return;
   }
 
@@ -706,9 +730,10 @@ function initGoogleAuthButton() {
       return;
     }
 
-    if (!isGoogleAuthConfigured()) {
-      setDataStatus('repository auto-sync (Google OAuth client ID missing)', false);
+    if (!isGoogleAuthConfigured() && !maybeSetGoogleOAuthClientId()) {
+      setDataStatus('repository auto-sync (Google OAuth client ID required)', false);
       setAccessCheck(false);
+      setGoogleAuthState(false);
       return;
     }
 
@@ -723,7 +748,7 @@ function initGoogleAuthButton() {
       const tokenResponse = await new Promise((resolve, reject) => {
         if (!googleTokenClient) {
           googleTokenClient = window.google.accounts.oauth2.initTokenClient({
-            client_id: GOOGLE_OAUTH_CLIENT_ID,
+            client_id: getGoogleOAuthClientId(),
             scope: GOOGLE_SHEETS_READ_SCOPE,
             callback: (resp) => {
               if (resp && resp.error) {

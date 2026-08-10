@@ -80,8 +80,9 @@ Setup required:
 2. Create an **OAuth 2.0 Client ID** of type **Web application**.
 3. Add authorized JavaScript origin(s):
    - `https://chrisstone-hhsvison.github.io`
-4. Copy the client ID into `roadmap.html`:
-   - Set `GOOGLE_OAUTH_CLIENT_ID` near the top of the script.
+4. Provide the client ID either way:
+   - Preferred: set `GOOGLE_OAUTH_CLIENT_ID` in `roadmap.html` and redeploy.
+   - Fast path: click **Set Google Sign-In** in the page and paste the client ID once (stored in browser local storage for that user/browser).
 5. Ensure users are granted access to the source sheet in Google Sheets.
 
 Notes:
