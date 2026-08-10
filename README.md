@@ -37,7 +37,9 @@ To make the roadmap available to the project team via URL, this repo now include
 1. Open repository **Settings** > **Pages**.
 2. Under **Build and deployment**, choose **Source: GitHub Actions**.
 3. Push to `main` (or run the workflow manually from **Actions** > **Deploy Roadmap**).
-4. Share the Pages URL (typically `https://<org-or-user>.github.io/<repo>/`).
+4. Share the Pages URL: `https://chrisstone-hhsvision.github.io/hhs-vision-productmgmt/`.
+
+If this URL returns a temporary 404 right after an account rename, run **Deploy Roadmap** once from **Actions** and wait a few minutes for GitHub Pages host mapping to propagate.
 
 ### Live updates for all viewers
 
