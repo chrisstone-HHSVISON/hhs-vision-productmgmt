@@ -83,12 +83,14 @@ Setup required:
 4. Provide the client ID either way:
    - Preferred: set `GOOGLE_OAUTH_CLIENT_ID` in `roadmap.html` and redeploy.
    - Fast path: click **Set Google Sign-In** in the page and paste the client ID once (stored in browser local storage for that user/browser).
+   - Shared-link path: append `?googleClientId=<YOUR_CLIENT_ID>` to the roadmap URL to auto-fill setup for the browser.
 5. Ensure users are granted access to the source sheet in Google Sheets.
 
 Notes:
 
 - This mode is per-user and requires sign-in in each browser session.
 - If OAuth is not configured, the sign-in button is disabled and snapshot mode continues to work.
+- Users can click **Clear Google Setup** to remove stored client ID/token state and return to snapshot mode.
 | Milestone | Start Date                    | End Date                    | Duration          |
 | --------- | ----------------------------- | --------------------------- | ----------------- |
 | **1**     | Wednesday, June 10, 2026      | Tuesday, July 7, 2026       | 4 weeks / 28 days |
