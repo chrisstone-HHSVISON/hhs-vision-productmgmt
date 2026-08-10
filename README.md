@@ -61,7 +61,33 @@ Optional repository variables:
 
 - `GOOGLE_SHEET_ID` (default already set in workflow)
 - `GOOGLE_WORKSHEET_GID` (default `0`)
-- `ROADMAP_CSV_URL` (default already set in workflow)
+- `ROADMAP_CSV_URL`
+
+### Optional: Viewer Google Sign-In for live access
+
+`roadmap.html` now supports an optional client-side mode where each viewer signs in with their Google account. If they already have permission on the source sheet, they can pull live updates directly.
+
+How it works:
+
+1. Default mode remains repository snapshot mode (GitHub Actions sync + Pages).
+2. User clicks **Sign in with Google** in the Live Sync cluster.
+3. The page requests a read-only Google Sheets token and fetches rows via Sheets API.
+4. User can switch back with **Use Snapshot Mode**.
+
+Setup required:
+
+1. In Google Cloud Console, enable **Google Sheets API**.
+2. Create an **OAuth 2.0 Client ID** of type **Web application**.
+3. Add authorized JavaScript origin(s):
+   - `https://chrisstone-hhsvison.github.io`
+4. Copy the client ID into `roadmap.html`:
+   - Set `GOOGLE_OAUTH_CLIENT_ID` near the top of the script.
+5. Ensure users are granted access to the source sheet in Google Sheets.
+
+Notes:
+
+- This mode is per-user and requires sign-in in each browser session.
+- If OAuth is not configured, the sign-in button is disabled and snapshot mode continues to work.
 | Milestone | Start Date                    | End Date                    | Duration          |
 | --------- | ----------------------------- | --------------------------- | ----------------- |
 | **1**     | Wednesday, June 10, 2026      | Tuesday, July 7, 2026       | 4 weeks / 28 days |
