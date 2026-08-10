@@ -492,6 +492,8 @@ const SHEET_SOURCE = {
   releaseTwo: '2. 2027 Go-Live MVP',
 };
 const AUTO_REFRESH_MS = 120000;
+const REPO_AUTO_SYNC_MODE = true;
+const SNAPSHOT_UPDATED_AT = '2026-08-10T21:43:56Z';
 
 function csvTextToObjects(text) {
   const rows = [];
@@ -634,7 +636,7 @@ function setRefreshInProgress(inProgress) {
   const cluster = document.getElementById('syncCluster');
   if (!btn) return;
   btn.disabled = inProgress;
-  btn.textContent = inProgress ? 'Refreshing...' : 'Refresh Now';
+  btn.textContent = inProgress ? 'Refreshing...' : (REPO_AUTO_SYNC_MODE ? 'Reload Page' : 'Refresh Now');
   if (cluster) cluster.classList.toggle('is-syncing', !!inProgress);
   if (inProgress) {
     const access = document.getElementById('accessCheck');
@@ -779,6 +781,11 @@ function applyCurrentUiState() {
 }
 
 async function refreshRoadmapData() {
+  if (REPO_AUTO_SYNC_MODE) {
+    window.location.reload();
+    return;
+  }
+
   setRefreshInProgress(true);
   try {
     const liveData = await loadLiveRoadmapData();
@@ -803,6 +810,16 @@ async function refreshRoadmapData() {
 }
 
 async function initRoadmapData() {
+  if (REPO_AUTO_SYNC_MODE) {
+    setRefreshInProgress(false);
+    setDataStatus('repository auto-sync (GitHub Actions)', true);
+    setAccessCheck(true);
+    setLastSynced(SNAPSHOT_UPDATED_AT);
+    latestDataSignature = JSON.stringify({ r1: R1, r2: R2 });
+    renderRoadmap();
+    return;
+  }
+
   setRefreshInProgress(true);
   try {
     const liveData = await loadLiveRoadmapData();

@@ -10,7 +10,7 @@ Active — Release 1 (Happy Path) is in progress. Currently in **Milestone 3** (
 
 | File | Description |
 | ---- | ----------- |
-| `roadmap.html` | Interactive Gantt-style feature roadmap. Open in a browser. Loads data dynamically from the hosted Google Sheet export and auto-refreshes every 2 minutes; falls back to embedded snapshot data if live sync is unavailable. Supports expand/collapse of sub-features and per-release filtering. |
+| `roadmap.html` | Interactive Gantt-style feature roadmap. Open in a browser. Uses repository snapshot data that is automatically refreshed by GitHub Actions, so all viewers see updates after each sync/deploy. Supports expand/collapse of sub-features and per-release + milestone filtering. |
 | `Source/roadmap-data.csv` | Source data snapshot exported from the Google Sheet (`VISION Feature Inventory`, Roadmap view). This replaces `Source/Roadmap data.pdf` as the roadmap data source moving forward. |
 
 ## Releases
@@ -29,6 +29,7 @@ Active — Release 1 (Happy Path) is in progress. Currently in **Milestone 3** (
 To make the roadmap available to the project team via URL, this repo now includes a GitHub Pages workflow:
 
 - Workflow file: `.github/workflows/deploy-roadmap.yml`
+- Sync workflow: `.github/workflows/sync-roadmap-data.yml`
 - Entry page: `index.html` (redirects to `roadmap.html`)
 
 ### Enable once in GitHub
@@ -38,9 +39,29 @@ To make the roadmap available to the project team via URL, this repo now include
 3. Push to `main` (or run the workflow manually from **Actions** > **Deploy Roadmap**).
 4. Share the Pages URL (typically `https://<org-or-user>.github.io/<repo>/`).
 
-### Important access note
+### Live updates for all viewers
 
-`roadmap.html` live sync reads from the hosted Google Sheet export URL. Team members viewing the roadmap must also have permission to access the source sheet; otherwise the page will use embedded fallback snapshot data.
+Roadmap data sync now runs server-side in GitHub Actions and commits updated snapshot data to this repo. Pages then serves that updated snapshot to every viewer.
+
+Default sync cadence:
+
+- Every 30 minutes
+- Manual run available in **Actions** > **Sync Roadmap Data**
+
+### Data source configuration
+
+The sync workflow supports two modes:
+
+1. `GOOGLE_SERVICE_ACCOUNT_JSON` secret (recommended for private sheet access)
+: Share the source sheet with the service account email in this JSON credential.
+2. `ROADMAP_CSV_URL` repository variable
+: Use a public/exportable CSV URL if available.
+
+Optional repository variables:
+
+- `GOOGLE_SHEET_ID` (default already set in workflow)
+- `GOOGLE_WORKSHEET_GID` (default `0`)
+- `ROADMAP_CSV_URL` (default already set in workflow)
 | Milestone | Start Date                    | End Date                    | Duration          |
 | --------- | ----------------------------- | --------------------------- | ----------------- |
 | **1**     | Wednesday, June 10, 2026      | Tuesday, July 7, 2026       | 4 weeks / 28 days |
