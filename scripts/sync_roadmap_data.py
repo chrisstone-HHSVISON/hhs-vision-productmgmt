@@ -139,10 +139,11 @@ def main():
         csv_text = fetch_csv_via_url(csv_url)
         print(f"Fetched roadmap data from URL: {csv_url}")
     else:
-        fail(
-            "No sync source configured. Provide GOOGLE_SERVICE_ACCOUNT_JSON (preferred) "
-            "or ROADMAP_CSV_URL."
+        print(
+            "No sync source configured. Set GOOGLE_SERVICE_ACCOUNT_JSON (preferred) "
+            "or ROADMAP_CSV_URL. Skipping sync."
         )
+        return
 
     ROADMAP_CSV.write_text(csv_text, encoding="utf-8")
 
