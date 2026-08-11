@@ -448,6 +448,7 @@
   <div class="sync-cluster" id="syncCluster">
     <span class="sync-title"><span class="sync-dot" id="syncDot"></span>Live Sync</span>
     <button class="expand-all-btn" id="refreshNowBtn">Sync Now</button>
+    <button class="expand-all-btn" id="runServerSyncBtn">Run Server Sync</button>
     <button class="expand-all-btn" id="openSheetBtn">Open Source Sheet</button>
     <span class="controls-label sync-meta access" id="accessCheck">Access Check: Checking...</span>
     <span class="controls-label sync-meta" id="dataStatus">Source: embedded snapshot</span>
@@ -501,6 +502,7 @@ const RELOAD_CACHE_PARAM = '_refresh';
 const CANONICAL_PAGES_HOST = 'chrisstone-hhsvision.github.io';
 const CANONICAL_ROADMAP_PATH = '/hhs-vision-productmgmt/roadmap.html';
 const SYNC_NOTICE_KEY = 'roadmapSyncNotice';
+const SYNC_WORKFLOW_URL = 'https://github.com/chrisstone-hhsvision/hhs-vision-productmgmt/actions/workflows/sync-roadmap-data.yml';
 
 function csvTextToObjects(text) {
   const rows = [];
@@ -698,9 +700,11 @@ function consumeSyncNotice() {
 
 function setRefreshInProgress(inProgress) {
   const btn = document.getElementById('refreshNowBtn');
+  const runServerBtn = document.getElementById('runServerSyncBtn');
   const cluster = document.getElementById('syncCluster');
   if (!btn) return;
   btn.disabled = inProgress;
+  if (runServerBtn) runServerBtn.disabled = inProgress;
   btn.textContent = inProgress ? 'Syncing...' : 'Sync Now';
   if (cluster) cluster.classList.toggle('is-syncing', !!inProgress);
   if (inProgress) {
@@ -870,13 +874,12 @@ async function refreshRoadmapData() {
       const snapshotIso = getRepoDisplayedSyncTimestamp();
       const snapshotStamp = formatSyncTimestamp(snapshotIso);
       const accessMessage = snapshotStamp
-        ? `Access Check: Live source unavailable, showing latest deployed snapshot (${snapshotStamp})`
-        : 'Access Check: Live source unavailable, showing latest deployed snapshot';
-      setDataStatus('repository snapshot reload (live sheet unavailable)', true);
+        ? `Access Check: Live source unavailable, showing latest deployed snapshot (${snapshotStamp}). Use Run Server Sync.`
+        : 'Access Check: Live source unavailable, showing latest deployed snapshot. Use Run Server Sync.';
+      setDataStatus('server-side sync required (GitHub Actions)', true);
       setAccessCheck(false, accessMessage);
       stashSyncNotice(accessMessage);
-      triggeredReload = true;
-      reloadWithCacheBust();
+      triggeredReload = false;
       return;
     }
 
@@ -902,6 +905,9 @@ async function initRoadmapData() {
     setLastSynced(getRepoDisplayedSyncTimestamp());
     latestDataSignature = JSON.stringify({ r1: R1, r2: R2 });
     renderRoadmap();
+
+    const runServerBtn = document.getElementById('runServerSyncBtn');
+    if (runServerBtn) runServerBtn.style.display = '';
     return;
   }
 
@@ -952,6 +958,10 @@ document.getElementById('expandAllBtn').addEventListener('click', function() {
 
 document.getElementById('refreshNowBtn').addEventListener('click', function() {
   refreshRoadmapData();
+});
+
+document.getElementById('runServerSyncBtn').addEventListener('click', function() {
+  window.open(SYNC_WORKFLOW_URL, '_blank', 'noopener');
 });
 
 document.getElementById('openSheetBtn').addEventListener('click', function() {
