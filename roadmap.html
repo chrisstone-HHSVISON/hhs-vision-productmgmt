@@ -447,7 +447,7 @@
   <button class="expand-all-btn" id="expandAllBtn">Expand All Sub-Features</button>
   <div class="sync-cluster" id="syncCluster">
     <span class="sync-title"><span class="sync-dot" id="syncDot"></span>Live Sync</span>
-    <button class="expand-all-btn" id="refreshNowBtn">Refresh Now</button>
+    <button class="expand-all-btn" id="refreshNowBtn">Sync Now</button>
     <button class="expand-all-btn" id="openSheetBtn">Open Source Sheet</button>
     <span class="controls-label sync-meta access" id="accessCheck">Access Check: Checking...</span>
     <span class="controls-label sync-meta" id="dataStatus">Source: embedded snapshot</span>
@@ -669,7 +669,7 @@ function setRefreshInProgress(inProgress) {
   const cluster = document.getElementById('syncCluster');
   if (!btn) return;
   btn.disabled = inProgress;
-  btn.textContent = inProgress ? 'Refreshing...' : (REPO_AUTO_SYNC_MODE ? 'Reload Page' : 'Refresh Now');
+  btn.textContent = inProgress ? 'Syncing...' : 'Sync Now';
   if (cluster) cluster.classList.toggle('is-syncing', !!inProgress);
   if (inProgress) {
     const access = document.getElementById('accessCheck');
@@ -814,16 +814,10 @@ function applyCurrentUiState() {
 }
 
 async function refreshRoadmapData() {
-  if (REPO_AUTO_SYNC_MODE) {
-    setRefreshInProgress(true);
-    setDataStatus('checking repository snapshot...', true);
-    setAccessCheck(true);
-    reloadWithCacheBust();
-    return;
-  }
-
   setRefreshInProgress(true);
+  let triggeredReload = false;
   try {
+    // Try to pull from source on-demand so users can actively sync without waiting for workflow cadence.
     const liveData = await loadLiveRoadmapData();
     const nextSignature = JSON.stringify(liveData);
     const now = new Date().toISOString();
@@ -834,14 +828,26 @@ async function refreshRoadmapData() {
       renderRoadmap();
     }
     setLastSynced(now);
-    setDataStatus('live sheet (auto-sync on)', true);
+    setDataStatus('live sheet (synced just now)', true);
     setAccessCheck(true);
   } catch (err) {
-    console.warn('Roadmap live refresh failed, keeping current rendered data.', err);
+    console.warn('Roadmap live refresh failed.', err);
+
+    if (REPO_AUTO_SYNC_MODE) {
+      // Fall back to the latest deployed snapshot when direct live fetch is unavailable.
+      setDataStatus('repository snapshot reload (live sheet unavailable)', true);
+      setAccessCheck(false);
+      triggeredReload = true;
+      reloadWithCacheBust();
+      return;
+    }
+
     setDataStatus('embedded snapshot (live sync unavailable)', false);
     setAccessCheck(false);
   } finally {
-    setRefreshInProgress(false);
+    if (!triggeredReload) {
+      setRefreshInProgress(false);
+    }
   }
 }
 
