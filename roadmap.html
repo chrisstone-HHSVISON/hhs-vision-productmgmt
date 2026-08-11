@@ -643,6 +643,13 @@ function setLastSynced(isoTimestamp) {
   el.textContent = `Last synced: ${formatted}`;
 }
 
+function formatSyncTimestamp(isoTimestamp) {
+  if (!isoTimestamp) return '';
+  const parsed = Date.parse(isoTimestamp);
+  if (Number.isNaN(parsed)) return '';
+  return new Date(parsed).toLocaleString();
+}
+
 function getRepoDisplayedSyncTimestamp() {
   const snapshotMs = Date.parse(SNAPSHOT_UPDATED_AT || '');
   const pageMs = Date.parse(document.lastModified || '');
@@ -860,9 +867,14 @@ async function refreshRoadmapData() {
 
     if (REPO_AUTO_SYNC_MODE) {
       // Fall back to the latest deployed snapshot when direct live fetch is unavailable.
+      const snapshotIso = getRepoDisplayedSyncTimestamp();
+      const snapshotStamp = formatSyncTimestamp(snapshotIso);
+      const accessMessage = snapshotStamp
+        ? `Access Check: Live source unavailable, showing latest deployed snapshot (${snapshotStamp})`
+        : 'Access Check: Live source unavailable, showing latest deployed snapshot';
       setDataStatus('repository snapshot reload (live sheet unavailable)', true);
-      setAccessCheck(false, 'Access Check: Live source unavailable, loading latest deployed snapshot');
-      stashSyncNotice('Access Check: Live source unavailable, showing latest deployed snapshot');
+      setAccessCheck(false, accessMessage);
+      stashSyncNotice(accessMessage);
       triggeredReload = true;
       reloadWithCacheBust();
       return;
