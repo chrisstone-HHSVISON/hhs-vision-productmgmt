@@ -500,6 +500,7 @@ const SNAPSHOT_UPDATED_AT = '2026-08-10T21:43:56Z';
 const RELOAD_CACHE_PARAM = '_refresh';
 const CANONICAL_PAGES_HOST = 'chrisstone-hhsvision.github.io';
 const CANONICAL_ROADMAP_PATH = '/hhs-vision-productmgmt/roadmap.html';
+const SYNC_NOTICE_KEY = 'roadmapSyncNotice';
 
 function csvTextToObjects(text) {
   const rows = [];
@@ -612,10 +613,15 @@ function setDataStatus(message, live) {
   }
 }
 
-function setAccessCheck(connected) {
+function setAccessCheck(connected, customMessage = '') {
   const el = document.getElementById('accessCheck');
   if (!el) return;
   el.classList.remove('ok', 'warn');
+  if (customMessage) {
+    el.textContent = customMessage;
+    el.classList.add(connected ? 'ok' : 'warn');
+    return;
+  }
   if (connected) {
     el.textContent = 'Access Check: Live data connected';
     el.classList.add('ok');
@@ -662,6 +668,25 @@ function reloadWithCacheBust() {
 
   nextUrl.searchParams.set(RELOAD_CACHE_PARAM, Date.now().toString());
   window.location.replace(nextUrl.toString());
+}
+
+function stashSyncNotice(message) {
+  try {
+    sessionStorage.setItem(SYNC_NOTICE_KEY, message);
+  } catch (err) {
+    console.warn('Unable to persist sync notice.', err);
+  }
+}
+
+function consumeSyncNotice() {
+  try {
+    const value = sessionStorage.getItem(SYNC_NOTICE_KEY) || '';
+    if (value) sessionStorage.removeItem(SYNC_NOTICE_KEY);
+    return value;
+  } catch (err) {
+    console.warn('Unable to read sync notice.', err);
+    return '';
+  }
 }
 
 function setRefreshInProgress(inProgress) {
@@ -836,7 +861,8 @@ async function refreshRoadmapData() {
     if (REPO_AUTO_SYNC_MODE) {
       // Fall back to the latest deployed snapshot when direct live fetch is unavailable.
       setDataStatus('repository snapshot reload (live sheet unavailable)', true);
-      setAccessCheck(false);
+      setAccessCheck(false, 'Access Check: Live source unavailable, loading latest deployed snapshot');
+      stashSyncNotice('Access Check: Live source unavailable, showing latest deployed snapshot');
       triggeredReload = true;
       reloadWithCacheBust();
       return;
@@ -855,7 +881,12 @@ async function initRoadmapData() {
   if (REPO_AUTO_SYNC_MODE) {
     setRefreshInProgress(false);
     setDataStatus('repository auto-sync (GitHub Actions)', true);
-    setAccessCheck(true);
+    const syncNotice = consumeSyncNotice();
+    if (syncNotice) {
+      setAccessCheck(false, syncNotice);
+    } else {
+      setAccessCheck(true);
+    }
     setLastSynced(getRepoDisplayedSyncTimestamp());
     latestDataSignature = JSON.stringify({ r1: R1, r2: R2 });
     renderRoadmap();
