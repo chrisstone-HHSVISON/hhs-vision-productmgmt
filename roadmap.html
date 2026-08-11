@@ -498,6 +498,8 @@ const AUTO_REFRESH_MS = 120000;
 const REPO_AUTO_SYNC_MODE = true;
 const SNAPSHOT_UPDATED_AT = '2026-08-10T21:43:56Z';
 const RELOAD_CACHE_PARAM = '_refresh';
+const CANONICAL_PAGES_HOST = 'chrisstone-hhsvision.github.io';
+const CANONICAL_ROADMAP_PATH = '/hhs-vision-productmgmt/roadmap.html';
 
 function csvTextToObjects(text) {
   const rows = [];
@@ -651,6 +653,13 @@ function getRepoDisplayedSyncTimestamp() {
 
 function reloadWithCacheBust() {
   const nextUrl = new URL(window.location.href);
+
+  // Keep local file usage unchanged, but force hosted refreshes to the canonical roadmap URL.
+  if (nextUrl.protocol !== 'file:' && nextUrl.hostname.endsWith('github.io')) {
+    nextUrl.hostname = CANONICAL_PAGES_HOST;
+    nextUrl.pathname = CANONICAL_ROADMAP_PATH;
+  }
+
   nextUrl.searchParams.set(RELOAD_CACHE_PARAM, Date.now().toString());
   window.location.replace(nextUrl.toString());
 }
