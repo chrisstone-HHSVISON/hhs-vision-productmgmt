@@ -729,7 +729,11 @@ function setRefreshInProgress(inProgress) {
   if (!btn) return;
   btn.disabled = inProgress;
   if (runServerBtn) runServerBtn.disabled = inProgress;
-  btn.textContent = inProgress ? 'Syncing...' : 'Sync Now';
+  if (inProgress) {
+    btn.textContent = 'Syncing...';
+  } else {
+    btn.textContent = syncFallbackSuggested ? 'Open Server Sync' : 'Sync Now';
+  }
   if (cluster) cluster.classList.toggle('is-syncing', !!inProgress);
   if (inProgress) {
     const access = document.getElementById('accessCheck');
@@ -758,6 +762,7 @@ let latestDataSignature = '';
 let latestSyncIso = '';
 let currentReleaseFilter = 'all';
 let currentMilestoneFilter = 'all';
+let syncFallbackSuggested = false;
 function buildRows(features, rel) {
   return features.map(feat => {
     const id = 'f' + uid++;
@@ -886,9 +891,12 @@ async function refreshRoadmapData() {
       R2 = liveData.r2;
       latestDataSignature = nextSignature;
       renderRoadmap();
+      setDataStatus('live sheet synced just now', true);
+    } else {
+      setDataStatus('live sheet checked (no changes)', true);
     }
+    syncFallbackSuggested = false;
     setLastSynced(now);
-    setDataStatus('live sheet (synced just now)', true);
     setAccessCheck(true);
   } catch (err) {
     console.warn('Roadmap live refresh failed.', err);
@@ -903,6 +911,7 @@ async function refreshRoadmapData() {
       setDataStatus('server-side sync required (GitHub Actions)', true);
       setAccessCheck(false, accessMessage);
       stashSyncNotice(accessMessage);
+      syncFallbackSuggested = true;
       triggeredReload = false;
       return;
     }
@@ -981,6 +990,10 @@ document.getElementById('expandAllBtn').addEventListener('click', function() {
 });
 
 document.getElementById('refreshNowBtn').addEventListener('click', function() {
+  if (syncFallbackSuggested && REPO_AUTO_SYNC_MODE) {
+    window.open(SYNC_WORKFLOW_URL, '_blank', 'noopener');
+    return;
+  }
   refreshRoadmapData();
 });
 
