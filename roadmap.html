@@ -492,6 +492,7 @@ let R2 = STATIC_R2;
 const SHEET_SOURCE = {
   sheetUrl: 'https://docs.google.com/spreadsheets/d/1s4S1TS3Vkl_Xh9uZ9CSZt9VTWVhDzU5-wNpCu7q5w4g/edit?gid=0#gid=0',
   csvUrl: 'https://docs.google.com/spreadsheets/d/1s4S1TS3Vkl_Xh9uZ9CSZt9VTWVhDzU5-wNpCu7q5w4g/export?format=csv&gid=0',
+  gvizCsvUrl: 'https://docs.google.com/spreadsheets/d/1s4S1TS3Vkl_Xh9uZ9CSZt9VTWVhDzU5-wNpCu7q5w4g/gviz/tq?tqx=out:csv&gid=0',
   releaseOne: '1. Dec 14 Happy Path',
   releaseTwo: '2. 2027 Go-Live MVP',
 };
@@ -594,9 +595,32 @@ function sheetRowsToReleaseData(rows) {
 }
 
 async function loadLiveRoadmapData() {
-  const response = await fetch(SHEET_SOURCE.csvUrl, { cache: 'no-store' });
-  if (!response.ok) throw new Error(`Sheet request failed: ${response.status}`);
-  const text = await response.text();
+  const csvCandidates = [SHEET_SOURCE.csvUrl, SHEET_SOURCE.gvizCsvUrl];
+  let text = '';
+  let lastStatus = 0;
+
+  for (const url of csvCandidates) {
+    const response = await fetch(url, {
+      cache: 'no-store',
+      credentials: 'include',
+      mode: 'cors',
+      redirect: 'follow',
+    });
+
+    lastStatus = response.status;
+    if (!response.ok) continue;
+
+    const body = await response.text();
+    if (body && body.trim()) {
+      text = body;
+      break;
+    }
+  }
+
+  if (!text) {
+    throw new Error(`Sheet request failed: ${lastStatus || 'no-data'}`);
+  }
+
   const rows = csvTextToObjects(text);
   const data = sheetRowsToReleaseData(rows);
   if (!data.r1.length && !data.r2.length) throw new Error('No usable roadmap rows returned from sheet');
